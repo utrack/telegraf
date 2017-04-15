@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/influxdata/telegraf/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func postWebhooks(pt *PapertrailWebhook, payloadBody string) *httptest.ResponseRecorder {
@@ -22,11 +23,10 @@ func postWebhooks(pt *PapertrailWebhook, payloadBody string) *httptest.ResponseR
 func TestEventPayload(t *testing.T) {
 	var acc testutil.Accumulator
 	pt := &PapertrailWebhook{Path: "/papertrail", acc: &acc}
-	payload := url.QueryEscape(sampleEventPayload)
-	resp := postWebhooks(pt, payload)
-	if resp.Code != http.StatusOK {
-		t.Errorf("POST new_item returned HTTP status code %v.\nExpected %v", resp.Code, http.StatusOK)
-	}
+	form := url.Values{}
+	form.Add("payload", sampleEventPayload)
+	resp := postWebhooks(pt, form.Encode())
+	require.Equal(t, resp.Code, http.StatusOk)
 
 	fields := map[string]interface{}{
 		"count": 1,
@@ -41,7 +41,6 @@ func TestEventPayload(t *testing.T) {
 		"host":  "def",
 	}
 
-	t.Logf("%v", acc.Metrics)
 	acc.AssertContainsTaggedFields(t, "papertrail", fields, tags1)
 	acc.AssertContainsTaggedFields(t, "papertrail", fields, tags2)
 }
@@ -49,11 +48,10 @@ func TestEventPayload(t *testing.T) {
 func TestCountPayload(t *testing.T) {
 	var acc testutil.Accumulator
 	pt := &PapertrailWebhook{Path: "/papertrail", acc: &acc}
-	payload := url.QueryEscape(sampleCountPayload)
-	resp := postWebhooks(pt, payload)
-	if resp.Code != http.StatusOK {
-		t.Errorf("POST new_item returned HTTP status code %v.\nExpected %v", resp.Code, http.StatusOK)
-	}
+	form := url.Values{}
+	form.Add("payload", sampleCountPayload)
+	resp := postWebhooks(pt, form.Encode())
+	require.Equal(t, resp.Code, http.StatusOk)
 
 	fields1 := map[string]interface{}{
 		"count": 5,
@@ -75,7 +73,7 @@ func TestCountPayload(t *testing.T) {
 	acc.AssertContainsTaggedFields(t, "papertrail", fields2, tags2)
 }
 
-const sampleEventPayload = `payload={
+const sampleEventPayload = `{
   "events": [
     {
       "id": 7711561783320576,
@@ -115,7 +113,7 @@ const sampleEventPayload = `payload={
   "min_id": "7711561783320576"
 }`
 
-const sampleCountPayload = `payload={
+const sampleCountPayload = `{
    "counts": [
      {
        "source_name": "arthur",
